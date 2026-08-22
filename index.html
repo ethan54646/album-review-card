@@ -460,7 +460,7 @@ function drawAurora(album, artist, score, caption) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `800 ${scoreSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
-  ctx.fillText(score, circleX + 18, circleY + 6);
+  ctx.fillText(score, circleX, circleY - 10);
   ctx.textBaseline = 'alphabetic';
 
   const titleSize = fitText(album, 1240, 72, '800');
