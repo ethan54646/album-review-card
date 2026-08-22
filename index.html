@@ -1,1 +1,582 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b0d12"><title>专辑乐评图片生成器</title><style>:root{--p:#171a21;--p2:#1f2430;--t:#f3f5f7;--m:#aeb7c2;--b:rgba(255,255,255,.08)}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(180deg,#0b0d12,#131722);color:var(--t);min-height:100vh}.wrap{max-width:1180px;margin:auto;padding:24px 16px 40px}h1{margin:0 0 8px;font-size:28px}.sub{color:var(--m);margin-bottom:20px;line-height:1.5;font-size:14px}.grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:20px;align-items:start}@media(max-width:900px){.grid{grid-template-columns:1fr}}.panel{background:rgba(23,26,33,.94);border:1px solid var(--b);border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.22)}.panel h2{margin:0 0 14px;font-size:18px}.field{margin-bottom:14px}.field label{display:block;margin-bottom:7px;color:#dbe3ea;font-size:14px;font-weight:650}.field input[type=text],.field select,.field textarea{width:100%;border:1px solid var(--b);background:var(--p2);color:var(--t);border-radius:12px;padding:12px;font-size:16px;outline:none}.field textarea{min-height:72px;resize:vertical}.field input[type=file]{width:100%;font-size:14px;color:var(--m)}.hint,.note,.tips{color:var(--m);font-size:12px;line-height:1.55}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}button{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:750;cursor:pointer}.primary{background:linear-gradient(135deg,#60a5fa,#22d3ee);color:#061018}.secondary{background:#2a3040;color:#eef4f8;border:1px solid var(--b)}.preview{display:flex;flex-direction:column;gap:14px;align-items:center}.shell{width:min(100%,640px);aspect-ratio:1;background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:20px;overflow:hidden}.shell canvas{width:100%;height:100%;display:block}.tips{width:min(100%,640px);font-size:13px}.note{margin-top:18px}</style></head><body><div class="wrap"><h1>专辑乐评图片生成器</h1><div class="sub">上传封面，填写专辑名、艺人和分数，立即生成 PNG。渐变海报风会自动吸取封面的主要颜色；图片只在你的浏览器本地处理。</div><div class="grid"><div class="panel"><h2>输入信息</h2><div class="field"><label>专辑封面</label><input id="cover" type="file" accept="image/*"><div class="hint">iPhone / iPad 可直接从照片中选择。</div></div><div class="field"><label>专辑名</label><input id="album" type="text" value="The Life of a Showgirl"></div><div class="field"><label>艺人名</label><input id="artist" type="text" value="Taylor Swift"></div><div class="row"><div class="field"><label>分数</label><input id="score" type="text" value="8.2"></div><div class="field"><label>模板</label><select id="template"><option value="mag">杂志大数字风</option><option value="minimal">极简黑白风</option><option value="aurora" selected>渐变海报风（自动取色）</option></select></div></div><div class="field"><label>副标题 / 一句话短评（可选）</label><textarea id="caption">A mischievous, flirty, surprisingly cohesive pop record.</textarea></div><div class="btns"><button id="share" class="primary">保存到相册 / 分享</button><button id="download" class="secondary">下载到文件</button><button id="reset" class="secondary">恢复默认示例</button></div><div class="note">iPhone：点「保存到相册 / 分享」→ 系统分享面板 →「存储图像」。导出尺寸为 1600×1600。</div></div><div class="panel preview"><h2 style="align-self:flex-start;width:min(100%,640px)">实时预览</h2><div class="shell"><canvas id="cv" width="1600" height="1600"></canvas></div><div class="tips">渐变海报风会根据你上传的封面自动提取 3 个主要颜色。</div></div></div></div><script>const $=id=>document.getElementById(id),cv=$('cv'),c=cv.getContext('2d'),cover=$('cover'),album=$('album'),artist=$('artist'),score=$('score'),template=$('template'),caption=$('caption');let img=null,pal=['#4f46e5','#06b6d4','#ec4899'];function rr(x,y,w,h,r){r=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}function dc(x,y,s,r=36){c.save();rr(x,y,s,s,r);c.clip();if(img){let k=Math.max(s/img.width,s/img.height),w=img.width*k,h=img.height*k;c.drawImage(img,x+(s-w)/2,y+(s-h)/2,w,h)}else{let g=c.createLinearGradient(x,y,x+s,y+s);g.addColorStop(0,'#2e3a59');g.addColorStop(1,'#101826');c.fillStyle=g;c.fillRect(x,y,s,s);c.fillStyle='rgba(255,255,255,.12)';c.font='700 72px -apple-system,sans-serif';c.textAlign='center';c.fillText('NO COVER',x+s/2,y+s/2+20)}c.restore()}function fs(t,m,s,w='700'){for(;s>24;s-=2){c.font=`${w} ${s}px -apple-system,sans-serif`;if(c.measureText(t).width<=m)return s}return s}function lines(t,m){let ws=t.split(/\s+/),ls=[],l='';for(let w of ws){let q=l?l+' '+w:w;if(c.measureText(q).width>m&&l){ls.push(l);l=w}else l=q}if(l)ls.push(l);return ls}function wt(t,x,y,m,lh,n){if(!t.trim())return;lines(t,m).slice(0,n).forEach((v,i)=>c.fillText(v,x,y+i*lh))}function clamp(n){return Math.max(0,Math.min(255,Math.round(n)))}function hex(r,g,b){return'#'+[r,g,b].map(v=>clamp(v).toString(16).padStart(2,'0')).join('')}function rgb(h){h=h.replace('#','');return{r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)}}function mix(a,b,t){a=rgb(a);b=rgb(b);return hex(a.r+(b.r-a.r)*t,a.g+(b.g-a.g)*t,a.b+(b.b-a.b)*t)}function alpha(h,a){let q=rgb(h);return`rgba(${q.r},${q.g},${q.b},${a})`}function lum(h){let q=rgb(h);return .2126*q.r+.7152*q.g+.0722*q.b}function palette(im){let s=document.createElement('canvas'),x=s.getContext('2d',{willReadFrequently:true});s.width=s.height=64;x.drawImage(im,0,0,64,64);let d=x.getImageData(0,0,64,64).data,b=new Map;for(let i=0;i<d.length;i+=4){let r=d[i],g=d[i+1],bl=d[i+2],mx=Math.max(r,g,bl),mn=Math.min(r,g,bl),sat=mx? (mx-mn)/mx:0,l=.2126*r+.7152*g+.0722*bl;if(d[i+3]<120||l<18||l>245||sat<.1)continue;let qr=Math.round(r/32)*32,qg=Math.round(g/32)*32,qb=Math.round(bl/32)*32,k=`${qr},${qg},${qb}`;b.set(k,(b.get(k)||0)+1+sat*2)}let cs=[...b.entries()].sort((a,b)=>b[1]-a[1]).map(([k])=>{let q=k.split(',').map(Number);return hex(q[0],q[1],q[2])}),out=[];for(let h of cs){if(out.length===3)break;let q=rgb(h),ok=out.every(e=>{let z=rgb(e);return Math.hypot(q.r-z.r,q.g-z.g,q.b-z.b)>70});if(ok)out.push(h)}while(out.length<3){if(!out.length)out.push('#4f46e5');else if(out.length===1)out.push(mix(out[0],'#06b6d4',.5));else out.push(mix(out[0],'#ec4899',.6))}return out.sort((a,b)=>lum(a)-lum(b))}function mag(a,r,s,q){let g=c.createLinearGradient(0,0,1600,1600);g.addColorStop(0,'#0a0d14');g.addColorStop(1,'#171d2d');c.fillStyle=g;c.fillRect(0,0,1600,1600);c.fillStyle='rgba(255,255,255,.06)';rr(80,80,1440,1440,48);c.fill();dc(130,130,680,42);c.textAlign='left';c.fillStyle='#fff';c.font='800 64px -apple-system,sans-serif';c.fillText('ALBUM REVIEW',885,182);c.fillStyle='rgba(255,255,255,.68)';c.font='700 26px -apple-system,sans-serif';c.fillText('SCORE',895,290);c.fillStyle='#fff';c.font='800 250px -apple-system,sans-serif';c.fillText(s,885,505);let z=fs(a.toUpperCase(),1240,72,'800');c.font=`800 ${z}px -apple-system,sans-serif`;wt(a.toUpperCase(),130,950,1320,z+8,2);c.fillStyle='rgba(255,255,255,.74)';c.font='700 42px -apple-system,sans-serif';c.fillText(r,130,1090);if(q){c.fillStyle='rgba(255,255,255,.92)';c.font='500 38px -apple-system,sans-serif';wt(q,130,1185,1260,54,4)}}function minimal(a,r,s,q){c.fillStyle='#f5f5f0';c.fillRect(0,0,1600,1600);c.fillStyle='#111';c.fillRect(0,0,1600,170);c.fillStyle='#fff';c.font='800 54px -apple-system,sans-serif';c.fillText('REVIEW',94,108);dc(96,260,620,18);c.fillStyle='#111';c.font='800 340px -apple-system,sans-serif';c.fillText(s,820,560);let z=fs(a,1360,82,'800');c.font=`800 ${z}px -apple-system,sans-serif`;wt(a,96,980,1360,z+12,2);c.fillStyle='#333';c.font='700 44px -apple-system,sans-serif';c.fillText(r,96,1110);if(q){c.fillStyle='#222';c.font='500 38px -apple-system,sans-serif';wt(q,96,1210,1360,54,4)}}function aurora(a,r,s,q){let c1=pal[0],c2=pal[1],c3=pal[2],bg=c.createLinearGradient(0,0,1600,1600);bg.addColorStop(0,mix(c1,'#08111f',.78));bg.addColorStop(.45,mix(c2,'#050816',.86));bg.addColorStop(1,mix(c3,'#0b1022',.82));c.fillStyle=bg;c.fillRect(0,0,1600,1600);for(let o of [[260,220,520,c1,.7],[1320,360,430,c2,.62],[1120,1280,540,c3,.58],[420,1180,370,mix(c1,c2,.45),.3]]){let g=c.createRadialGradient(o[0],o[1],0,o[0],o[1],o[2]);g.addColorStop(0,alpha(o[3],o[4]));g.addColorStop(1,alpha(o[3],0));c.fillStyle=g;c.fillRect(0,0,1600,1600)}c.fillStyle='rgba(255,255,255,.075)';rr(90,90,1420,1420,56);c.fill();dc(120,120,500,38);let x=1190,y=370,R=205,ring=c.createLinearGradient(x-R,y-R,x+R,y+R);ring.addColorStop(0,alpha(mix(c1,'#fff',.2),.95));ring.addColorStop(1,alpha(mix(c2,'#fff',.25),.95));c.strokeStyle=ring;c.lineWidth=9;c.beginPath();c.arc(x,y,R,0,Math.PI*2);c.stroke();c.fillStyle='rgba(255,255,255,.065)';c.beginPath();c.arc(x,y,R-12,0,Math.PI*2);c.fill();s=s.replace(/\s*\/\s*10$/i,'');let sz=fs(s,250,132,'800');c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';c.font=`800 ${sz}px -apple-system,sans-serif`;c.fillText(s,x+10,y+4);c.textBaseline='alphabetic';let z=fs(a,1280,72,'800');c.textAlign='left';c.fillStyle='#fff';c.font=`800 ${z}px -apple-system,sans-serif`;let ls=lines(a,1280).slice(0,2);ls.forEach((v,i)=>c.fillText(v,120,770+i*(z+8)));let ay=770+(ls.length-1)*(z+8)+z+42;c.fillStyle='rgba(255,255,255,.84)';c.font='700 40px -apple-system,sans-serif';c.fillText(r,120,ay);if(q){c.fillStyle='rgba(255,255,255,.94)';c.font='500 38px -apple-system,sans-serif';wt(q,120,ay+82,1280,54,5)}}function draw(){let a=(album.value||'Album Title').trim(),r=(artist.value||'Artist Name').trim(),s=(score.value||'8.0').trim(),q=(caption.value||'').trim();c.clearRect(0,0,1600,1600);template.value==='minimal'?minimal(a,r,s,q):template.value==='aurora'?aurora(a,r,s,q):mag(a,r,s,q)}function name(){return((album.value||'album-review').trim().replace(/[\\/:*?"<>|]+/g,'-')||'album-review')+'.png'}function blob(){return new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(Error('PNG failed')),'image/png'))}cover.onchange=e=>{let f=e.target.files&&e.target.files[0];if(!f){img=null;pal=['#4f46e5','#06b6d4','#ec4899'];draw();return}let rd=new FileReader;rd.onload=()=>{let i=new Image;i.onload=()=>{img=i;pal=palette(i);draw()};i.src=rd.result};rd.readAsDataURL(f)};[album,artist,score,template,caption].forEach(e=>{e.oninput=draw;e.onchange=draw});$('share').onclick=async()=>{draw();try{let b=await blob(),f=new File([b],name(),{type:'image/png'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[f]}))){await navigator.share({files:[f],title:album.value||'Album Review'});return}let u=URL.createObjectURL(b),w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}catch(e){if(e&&e.name==='AbortError')return;alert('无法调出系统分享面板，请使用「下载到文件」，或在生成图上长按保存。')}};$('download').onclick=()=>{draw();let a=document.createElement('a');a.download=name();a.href=cv.toDataURL('image/png');a.click()};$('reset').onclick=()=>{album.value='The Life of a Showgirl';artist.value='Taylor Swift';score.value='8.2';template.value='aurora';caption.value='A mischievous, flirty, surprisingly cohesive pop record.';cover.value='';img=null;pal=['#4f46e5','#06b6d4','#ec4899'];draw()};draw();</script></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>专辑乐评图片生成器</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: rgba(23, 26, 33, 0.92);
+      --panel2: #1f2430;
+      --text: #f3f5f7;
+      --muted: #aeb7c2;
+      --border: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #0b0d12, #131722);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 40px; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { color: var(--muted); margin-bottom: 20px; line-height: 1.55; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: 360px minmax(0,1fr); gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+      backdrop-filter: blur(10px);
+    }
+    .panel h2 { margin: 0 0 14px; font-size: 18px; }
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      color: #dbe3ea;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .field input[type="text"],
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
+      outline: none;
+    }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .field input[type="file"] { width: 100%; font-size: 14px; color: var(--muted); }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.4; margin-top: 5px; }
+    .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary { background: linear-gradient(135deg, #60a5fa, #22d3ee); color: #061018; }
+    .secondary { background: #2a3040; color: #eef4f8; border: 1px solid var(--border); }
+    .tertiary { background: #141926; color: #eef4f8; border: 1px solid var(--border); }
+    .footer-note { margin-top: 18px; color: #95a1af; font-size: 12px; line-height: 1.55; }
+    .preview-wrap { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+    .canvas-shell {
+      width: min(100%, 640px);
+      aspect-ratio: 1 / 1;
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    canvas { width: 100%; height: 100%; display: block; border-radius: 20px; }
+    .tips { color: var(--muted); font-size: 13px; line-height: 1.6; width: min(100%, 640px); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>专辑乐评图片生成器</h1>
+  <div class="sub">上传封面，填写专辑名、艺人和分数，立即生成一张可下载的 PNG 乐评图。<br>支持自动吸取封面主色生成渐变海报风；图片只在你的浏览器本地处理，不会上传到服务器。</div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>输入信息</h2>
+      <div class="field">
+        <label for="coverInput">专辑封面</label>
+        <input id="coverInput" type="file" accept="image/*" />
+        <div class="hint">iPhone / iPad 可直接从照片中选择。</div>
+      </div>
+      <div class="field">
+        <label for="album">专辑名</label>
+        <input id="album" type="text" value="The Life of a Showgirl" placeholder="输入专辑名" />
+      </div>
+      <div class="field">
+        <label for="artist">艺人名</label>
+        <input id="artist" type="text" value="Taylor Swift" placeholder="输入艺人名" />
+      </div>
+      <div class="inline">
+        <div class="field">
+          <label for="score">分数</label>
+          <input id="score" type="text" value="8.2" placeholder="例如 8.2" />
+        </div>
+        <div class="field">
+          <label for="template">模板</label>
+          <select id="template">
+            <option value="mag">杂志大数字风</option>
+            <option value="minimal">极简黑白风</option>
+            <option value="aurora">渐变海报风（自动取色）</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="caption">副标题 / 一句话短评（可选）</label>
+        <textarea id="caption" placeholder="写一句短评">A mischievous, flirty, surprisingly cohesive pop record.</textarea>
+      </div>
+      <div class="btns">
+        <button id="shareBtn" class="primary">保存到相册 / 分享</button>
+        <button id="downloadBtn" class="secondary">下载到文件</button>
+        <button id="resetBtn" class="tertiary">恢复默认示例</button>
+      </div>
+      <div class="footer-note">
+        评分可直接写「8.2」或「8.2 / 10」。<br>
+        在 iPhone 上推荐用「保存到相册 / 分享」，然后点系统菜单里的“存储图像”。<br>
+        导出的是 1600×1600 高清 PNG。
+      </div>
+    </div>
+
+    <div class="panel preview-wrap">
+      <h2 style="align-self:flex-start;width:min(100%,640px)">实时预览</h2>
+      <div class="canvas-shell"><canvas id="cardCanvas" width="1600" height="1600"></canvas></div>
+      <div class="tips">修改左侧内容，预览会自动更新。渐变海报风会自动提取封面主色。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('cardCanvas');
+const ctx = canvas.getContext('2d');
+const coverInput = document.getElementById('coverInput');
+const albumInput = document.getElementById('album');
+const artistInput = document.getElementById('artist');
+const scoreInput = document.getElementById('score');
+const templateInput = document.getElementById('template');
+const captionInput = document.getElementById('caption');
+const shareBtn = document.getElementById('shareBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+let coverImage = null;
+let palette = ['#4f46e5', '#06b6d4', '#ec4899'];
+
+function roundedRect(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+function drawCover(image, x, y, size, radius = 36) {
+  ctx.save();
+  roundedRect(ctx, x, y, size, size, radius);
+  ctx.clip();
+  if (image) {
+    const scale = Math.max(size / image.width, size / image.height);
+    const dw = image.width * scale;
+    const dh = image.height * scale;
+    ctx.drawImage(image, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
+  } else {
+    const g = ctx.createLinearGradient(x, y, x + size, y + size);
+    g.addColorStop(0, '#2e3a59');
+    g.addColorStop(1, '#101826');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, size, size);
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.font = '700 72px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('NO COVER', x + size / 2, y + size / 2 + 20);
+  }
+  ctx.restore();
+}
+
+function fitText(text, maxWidth, startSize, weight = '700') {
+  let size = startSize;
+  while (size > 24) {
+    ctx.font = `${weight} ${size}px -apple-system,BlinkMacSystemFont,sans-serif`;
+    if (ctx.measureText(text).width <= maxWidth) return size;
+    size -= 2;
+  }
+  return size;
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight, maxLines, align = 'left') {
+  if (!text.trim()) return;
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  const final = lines.slice(0, maxLines);
+  if (lines.length > maxLines && final.length) {
+    let last = final[final.length - 1];
+    while (ctx.measureText(last + '…').width > maxWidth && last.length) {
+      last = last.slice(0, -1);
+    }
+    final[final.length - 1] = last + '…';
+  }
+  ctx.textAlign = align;
+  final.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+}
+
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
+}
+
+function hexToRgb(hex) {
+  const s = hex.replace('#', '');
+  return {
+    r: parseInt(s.substring(0, 2), 16),
+    g: parseInt(s.substring(2, 4), 16),
+    b: parseInt(s.substring(4, 6), 16)
+  };
+}
+
+function luminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function mix(hexA, hexB, t) {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+}
+
+function withAlpha(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function extractPalette(image) {
+  if (!image) return ['#4f46e5', '#06b6d4', '#ec4899'];
+  const sample = document.createElement('canvas');
+  const sctx = sample.getContext('2d', { willReadFrequently: true });
+  sample.width = 60;
+  sample.height = 60;
+  sctx.drawImage(image, 0, 0, sample.width, sample.height);
+  const { data } = sctx.getImageData(0, 0, sample.width, sample.height);
+  const bins = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a < 120) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (lum < 18 || lum > 245) continue;
+    if (sat < 0.12) continue;
+    const qr = Math.round(r / 32) * 32;
+    const qg = Math.round(g / 32) * 32;
+    const qb = Math.round(b / 32) * 32;
+    const key = `${qr},${qg},${qb}`;
+    bins.set(key, (bins.get(key) || 0) + 1 + sat * 2);
+  }
+  let colors = Array.from(bins.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([key]) => {
+      const [r, g, b] = key.split(',').map(Number);
+      return rgbToHex(r, g, b);
+    });
+
+  const filtered = [];
+  for (const color of colors) {
+    if (filtered.length >= 3) break;
+    const keep = filtered.every(existing => {
+      const a = hexToRgb(color);
+      const b = hexToRgb(existing);
+      const dist = Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2);
+      return dist > 70;
+    });
+    if (keep) filtered.push(color);
+  }
+
+  while (filtered.length < 3) {
+    if (filtered.length === 0) filtered.push('#4f46e5');
+    else if (filtered.length === 1) filtered.push(mix(filtered[0], '#06b6d4', 0.5));
+    else filtered.push(mix(filtered[0], '#ec4899', 0.6));
+  }
+
+  filtered.sort((a, b) => luminance(a) - luminance(b));
+  return filtered;
+}
+
+function drawMag(album, artist, score, caption) {
+  const bg = ctx.createLinearGradient(0, 0, 1600, 1600);
+  bg.addColorStop(0, '#0a0d14');
+  bg.addColorStop(1, '#171d2d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1600, 1600);
+
+  ctx.fillStyle = 'rgba(255,255,255,.06)';
+  roundedRect(ctx, 80, 80, 1440, 1440, 48);
+  ctx.fill();
+
+  drawCover(coverImage, 130, 130, 680, 42);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f8fbff';
+  ctx.font = '800 64px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('ALBUM REVIEW', 885, 182);
+
+  ctx.fillStyle = 'rgba(255,255,255,.68)';
+  ctx.font = '700 26px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('SCORE', 895, 290);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '800 250px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(score, 885, 505);
+
+  const albumSize = fitText(album.toUpperCase(), 1240, 72, '800');
+  ctx.fillStyle = '#fff';
+  ctx.font = `800 ${albumSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+  wrapText(album.toUpperCase(), 130, 950, 1320, albumSize + 8, 2);
+
+  ctx.fillStyle = 'rgba(255,255,255,.74)';
+  ctx.font = '700 42px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(artist, 130, 1090);
+
+  if (caption.trim()) {
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    ctx.font = '500 38px -apple-system,BlinkMacSystemFont,sans-serif';
+    wrapText(caption, 130, 1185, 1260, 54, 4);
+  }
+
+  ctx.strokeStyle = 'rgba(255,255,255,.14)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(130, 1430);
+  ctx.lineTo(1470, 1430);
+  ctx.stroke();
+}
+
+function drawMinimal(album, artist, score, caption) {
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(0, 0, 1600, 1600);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, 1600, 170);
+  ctx.fillStyle = '#fff';
+  ctx.font = '800 54px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText('REVIEW', 94, 108);
+
+  drawCover(coverImage, 96, 260, 620, 18);
+
+  ctx.fillStyle = '#111';
+  ctx.font = '800 340px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(score, 820, 560);
+
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(820, 620);
+  ctx.lineTo(1460, 620);
+  ctx.stroke();
+
+  const albumSize = fitText(album, 1360, 82, '800');
+  ctx.font = `800 ${albumSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+  wrapText(album, 96, 980, 1360, albumSize + 12, 2);
+
+  ctx.fillStyle = '#333';
+  ctx.font = '700 44px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(artist, 96, 1110);
+
+  if (caption.trim()) {
+    ctx.fillStyle = '#222';
+    ctx.font = '500 38px -apple-system,BlinkMacSystemFont,sans-serif';
+    wrapText(caption, 96, 1210, 1360, 54, 4);
+  }
+}
+
+function drawAurora(album, artist, score, caption) {
+  const c1 = palette[0] || '#4338ca';
+  const c2 = palette[1] || '#06b6d4';
+  const c3 = palette[2] || '#ec4899';
+  const bgDark = mix(c1, '#08111f', 0.78);
+  const bgDark2 = mix(c2, '#050816', 0.86);
+
+  const bg = ctx.createLinearGradient(0, 0, 1600, 1600);
+  bg.addColorStop(0, bgDark);
+  bg.addColorStop(0.45, bgDark2);
+  bg.addColorStop(1, mix(c3, '#0b1022', 0.82));
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1600, 1600);
+
+  const orbs = [
+    { x: 260, y: 220, r: 520, color: c1, alpha: 0.70 },
+    { x: 1320, y: 360, r: 420, color: c2, alpha: 0.62 },
+    { x: 1130, y: 1280, r: 520, color: c3, alpha: 0.58 },
+    { x: 420, y: 1180, r: 360, color: mix(c1, c2, 0.45), alpha: 0.28 }
+  ];
+  orbs.forEach(o => {
+    const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
+    g.addColorStop(0, withAlpha(o.color, o.alpha));
+    g.addColorStop(1, withAlpha(o.color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1600, 1600);
+  });
+
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  roundedRect(ctx, 90, 90, 1420, 1420, 56);
+  ctx.fill();
+
+  drawCover(coverImage, 120, 120, 500, 38);
+
+  const circleX = 1180;
+  const circleY = 380;
+  const circleR = 215;
+  const ring = ctx.createLinearGradient(circleX - circleR, circleY - circleR, circleX + circleR, circleY + circleR);
+  ring.addColorStop(0, withAlpha(mix(c1, '#ffffff', 0.18), 0.9));
+  ring.addColorStop(1, withAlpha(mix(c2, '#ffffff', 0.22), 0.95));
+  ctx.strokeStyle = ring;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.arc(circleX, circleY, circleR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.beginPath();
+  ctx.arc(circleX, circleY, circleR - 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  const scoreSize = fitText(score, 260, 138, '800');
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 ${scoreSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+  ctx.fillText(score, circleX + 18, circleY + 6);
+  ctx.textBaseline = 'alphabetic';
+
+  const titleSize = fitText(album, 1240, 72, '800');
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${titleSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+  wrapText(album, 120, 770, 1280, titleSize + 10, 2);
+
+  const titleLines = Math.min(2, (() => {
+    const words = album.split(/\s+/); let line=''; let count=0;
+    ctx.font = `800 ${titleSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > 1280 && line) { count++; line = word; }
+      else { line = test; }
+    }
+    if (line) count++;
+    return count;
+  })());
+
+  const artistY = 770 + titleLines * (titleSize + 10) - 6;
+  ctx.fillStyle = 'rgba(255,255,255,.82)';
+  ctx.font = '700 40px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.fillText(artist, 120, artistY + 18);
+
+  if (caption.trim()) {
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.font = '500 38px -apple-system,BlinkMacSystemFont,sans-serif';
+    wrapText(caption, 120, artistY + 92, 1280, 54, 5);
+  }
+}
+
+function draw() {
+  const album = (albumInput.value || 'Album Title').trim();
+  const artist = (artistInput.value || 'Artist Name').trim();
+  const score = (scoreInput.value || '8.0').trim().replace(/\s*\/\s*10$/i, '');
+  const caption = (captionInput.value || '').trim();
+  const tpl = templateInput.value;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (tpl === 'minimal') drawMinimal(album, artist, score, caption);
+  else if (tpl === 'aurora') drawAurora(album, artist, score, caption);
+  else drawMag(album, artist, score, caption);
+}
+
+function fileNameBase() {
+  return (albumInput.value || 'album-review').trim().replace(/[\\/:*?"<>|]+/g, '-');
+}
+
+function canvasBlob() {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+coverInput.addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) {
+    coverImage = null;
+    palette = ['#4f46e5', '#06b6d4', '#ec4899'];
+    draw();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      coverImage = img;
+      palette = extractPalette(img);
+      draw();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+[albumInput, artistInput, scoreInput, templateInput, captionInput].forEach(el => {
+  el.addEventListener('input', draw);
+  el.addEventListener('change', draw);
+});
+
+shareBtn.addEventListener('click', async () => {
+  draw();
+  const blob = await canvasBlob();
+  const name = `${fileNameBase() || 'album-review'}.png`;
+  const file = new File([blob], name, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+    try {
+      await navigator.share({ files: [file], title: name });
+      return;
+    } catch (e) {}
+  }
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
+
+downloadBtn.addEventListener('click', () => {
+  draw();
+  const link = document.createElement('a');
+  link.download = `${fileNameBase() || 'album-review'}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+resetBtn.addEventListener('click', () => {
+  albumInput.value = 'The Life of a Showgirl';
+  artistInput.value = 'Taylor Swift';
+  scoreInput.value = '8.2';
+  templateInput.value = 'aurora';
+  captionInput.value = 'A mischievous, flirty, surprisingly cohesive pop record.';
+  coverInput.value = '';
+  coverImage = null;
+  palette = ['#4f46e5', '#06b6d4', '#ec4899'];
+  draw();
+});
+
+templateInput.value = 'aurora';
+draw();
+</script>
+</body>
+</html>
