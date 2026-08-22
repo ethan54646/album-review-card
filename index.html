@@ -207,8 +207,8 @@ function fitText(text, maxWidth, startSize, weight = '700') {
   return size;
 }
 
-function wrapText(text, x, y, maxWidth, lineHeight, maxLines, align = 'left') {
-  if (!text.trim()) return;
+function getWrappedLines(text, maxWidth) {
+  if (!text.trim()) return [];
   const words = text.split(/\s+/);
   const lines = [];
   let line = '';
@@ -222,6 +222,11 @@ function wrapText(text, x, y, maxWidth, lineHeight, maxLines, align = 'left') {
     }
   }
   if (line) lines.push(line);
+  return lines;
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight, maxLines, align = 'left') {
+  const lines = getWrappedLines(text, maxWidth);
   const final = lines.slice(0, maxLines);
   if (lines.length > maxLines && final.length) {
     let last = final[final.length - 1];
@@ -232,6 +237,40 @@ function wrapText(text, x, y, maxWidth, lineHeight, maxLines, align = 'left') {
   }
   ctx.textAlign = align;
   final.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+}
+
+function drawFittedReview(text, x, top, maxWidth, bottom) {
+  let fontSize = 38;
+  const minFontSize = 28;
+  let lines = [];
+  let lineHeight = 52;
+  let maxLines = 1;
+
+  while (fontSize >= minFontSize) {
+    ctx.font = `500 ${fontSize}px -apple-system,BlinkMacSystemFont,sans-serif`;
+    lineHeight = Math.round(fontSize * 1.38);
+    lines = getWrappedLines(text, maxWidth);
+    maxLines = Math.max(1, Math.floor((bottom - top) / lineHeight) + 1);
+    if (lines.length <= maxLines) break;
+    fontSize -= 2;
+  }
+
+  ctx.font = `500 ${Math.max(fontSize, minFontSize)}px -apple-system,BlinkMacSystemFont,sans-serif`;
+  lineHeight = Math.round(Math.max(fontSize, minFontSize) * 1.38);
+  lines = getWrappedLines(text, maxWidth);
+  maxLines = Math.max(1, Math.floor((bottom - top) / lineHeight) + 1);
+
+  const final = lines.slice(0, maxLines);
+  if (lines.length > maxLines && final.length) {
+    let last = final[final.length - 1];
+    while (ctx.measureText(last + '…').width > maxWidth && last.length) {
+      last = last.slice(0, -1);
+    }
+    final[final.length - 1] = last + '…';
+  }
+
+  ctx.textAlign = 'left';
+  final.forEach((line, i) => ctx.fillText(line, x, top + i * lineHeight));
 }
 
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
@@ -488,8 +527,9 @@ function drawAurora(album, artist, score, caption) {
 
   if (caption.trim()) {
     ctx.fillStyle = 'rgba(255,255,255,.94)';
-    ctx.font = '500 38px -apple-system,BlinkMacSystemFont,sans-serif';
-    wrapText(caption, 120, artistY + 92, 1280, 54, 5);
+    const captionTop = artistY + 92;
+    const captionBottom = 1435;
+    drawFittedReview(caption, 120, captionTop, 1280, captionBottom);
   }
 }
 
