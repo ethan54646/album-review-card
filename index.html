@@ -528,7 +528,7 @@ function drawAurora(album, artist, year, score, caption) {
   const artistY = 770 + titleLines * (titleSize + 10) - 6;
   ctx.fillStyle = 'rgba(255,255,255,.82)';
   ctx.font = '700 40px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText([year, artist].filter(Boolean).join('  '), 120, artistY + 18);
+  ctx.fillText([year, artist].filter(Boolean).join('          '), 120, artistY + 18);
 
   if (caption.trim()) {
     ctx.fillStyle = 'rgba(255,255,255,.94)';
