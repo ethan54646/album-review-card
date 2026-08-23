@@ -310,56 +310,60 @@ function withAlpha(hex, alpha) {
 }
 
 function extractPalette(image) {
-  if (!image) return ['#4f46e5', '#06b6d4', '#ec4899'];
+  // Pick colors by actual pixel coverage, not saturation.
+  // Nearby shades are grouped so broad color areas win.
+  if (!image) return ['#666666', '#aaaaaa', '#222222'];
+
   const sample = document.createElement('canvas');
   const sctx = sample.getContext('2d', { willReadFrequently: true });
-  sample.width = 60;
-  sample.height = 60;
+  sample.width = 80;
+  sample.height = 80;
   sctx.drawImage(image, 0, 0, sample.width, sample.height);
+
   const { data } = sctx.getImageData(0, 0, sample.width, sample.height);
   const bins = new Map();
+
   for (let i = 0; i < data.length; i += 4) {
-    const a = data[i + 3];
-    if (a < 120) continue;
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    const sat = max === 0 ? 0 : (max - min) / max;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    if (lum < 18 || lum > 245) continue;
-    if (sat < 0.12) continue;
-    const qr = Math.round(r / 32) * 32;
-    const qg = Math.round(g / 32) * 32;
-    const qb = Math.round(b / 32) * 32;
+    if (data[i + 3] < 120) continue;
+
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const step = 24;
+    const qr = clamp(Math.round(r / step) * step, 0, 255);
+    const qg = clamp(Math.round(g / step) * step, 0, 255);
+    const qb = clamp(Math.round(b / step) * step, 0, 255);
     const key = `${qr},${qg},${qb}`;
-    bins.set(key, (bins.get(key) || 0) + 1 + sat * 2);
+    bins.set(key, (bins.get(key) || 0) + 1);
   }
-  let colors = Array.from(bins.entries())
+
+  const colors = Array.from(bins.entries())
     .sort((a, b) => b[1] - a[1])
-    .map(([key]) => {
+    .map(([key, count]) => {
       const [r, g, b] = key.split(',').map(Number);
-      return rgbToHex(r, g, b);
+      return { color: rgbToHex(r, g, b), count };
     });
 
-  const filtered = [];
-  for (const color of colors) {
-    if (filtered.length >= 3) break;
-    const keep = filtered.every(existing => {
-      const a = hexToRgb(color);
-      const b = hexToRgb(existing);
-      const dist = Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2);
-      return dist > 70;
+  const picked = [];
+  for (const item of colors) {
+    if (picked.length >= 3) break;
+    const rgbA = hexToRgb(item.color);
+    const distinct = picked.every(existing => {
+      const rgbB = hexToRgb(existing);
+      return Math.hypot(rgbA.r - rgbB.r, rgbA.g - rgbB.g, rgbA.b - rgbB.b) > 36;
     });
-    if (keep) filtered.push(color);
+    if (distinct) picked.push(item.color);
   }
 
-  while (filtered.length < 3) {
-    if (filtered.length === 0) filtered.push('#4f46e5');
-    else if (filtered.length === 1) filtered.push(mix(filtered[0], '#06b6d4', 0.5));
-    else filtered.push(mix(filtered[0], '#ec4899', 0.6));
+  if (picked.length === 0) return ['#666666', '#aaaaaa', '#222222'];
+  if (picked.length === 1) {
+    picked.push(mix(picked[0], '#ffffff', 0.32));
+    picked.push(mix(picked[0], '#000000', 0.32));
+  } else if (picked.length === 2) {
+    picked.push(mix(picked[0], picked[1], 0.5));
   }
 
-  filtered.sort((a, b) => luminance(a) - luminance(b));
-  return filtered;
+  return picked.slice(0, 3);
 }
 
 function drawMag(album, artist, year, score, caption) {
