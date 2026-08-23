@@ -91,7 +91,7 @@
 <body>
 <div class="wrap">
   <h1>专辑乐评图片生成器</h1>
-  <div class="sub">上传封面，填写专辑名、艺人和分数，立即生成一张可下载的 PNG 乐评图。<br>支持自动吸取封面主色生成渐变海报风；图片只在你的浏览器本地处理，不会上传到服务器。</div>
+  <div class="sub">上传封面，填写专辑名、艺人、发行年份和分数，立即生成一张可下载的 PNG 乐评图。<br>支持自动吸取封面主色生成渐变海报风；图片只在你的浏览器本地处理，不会上传到服务器。</div>
 
   <div class="grid">
     <div class="panel">
@@ -108,6 +108,10 @@
       <div class="field">
         <label for="artist">艺人名</label>
         <input id="artist" type="text" value="Taylor Swift" placeholder="输入艺人名" />
+      </div>
+      <div class="field">
+        <label for="year">发行年份</label>
+        <input id="year" type="text" value="2025" placeholder="例如 2025" inputmode="numeric" />
       </div>
       <div class="inline">
         <div class="field">
@@ -153,6 +157,7 @@ const ctx = canvas.getContext('2d');
 const coverInput = document.getElementById('coverInput');
 const albumInput = document.getElementById('album');
 const artistInput = document.getElementById('artist');
+const yearInput = document.getElementById('year');
 const scoreInput = document.getElementById('score');
 const templateInput = document.getElementById('template');
 const captionInput = document.getElementById('caption');
@@ -357,7 +362,7 @@ function extractPalette(image) {
   return filtered;
 }
 
-function drawMag(album, artist, score, caption) {
+function drawMag(album, artist, year, score, caption) {
   const bg = ctx.createLinearGradient(0, 0, 1600, 1600);
   bg.addColorStop(0, '#0a0d14');
   bg.addColorStop(1, '#171d2d');
@@ -390,7 +395,7 @@ function drawMag(album, artist, score, caption) {
 
   ctx.fillStyle = 'rgba(255,255,255,.74)';
   ctx.font = '700 42px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText(artist, 130, 1090);
+  ctx.fillText([year, artist].filter(Boolean).join('  '), 130, 1090);
 
   if (caption.trim()) {
     ctx.fillStyle = 'rgba(255,255,255,.92)';
@@ -406,7 +411,7 @@ function drawMag(album, artist, score, caption) {
   ctx.stroke();
 }
 
-function drawMinimal(album, artist, score, caption) {
+function drawMinimal(album, artist, year, score, caption) {
   ctx.fillStyle = '#f5f5f0';
   ctx.fillRect(0, 0, 1600, 1600);
   ctx.fillStyle = '#111';
@@ -434,7 +439,7 @@ function drawMinimal(album, artist, score, caption) {
 
   ctx.fillStyle = '#333';
   ctx.font = '700 44px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText(artist, 96, 1110);
+  ctx.fillText([year, artist].filter(Boolean).join('  '), 96, 1110);
 
   if (caption.trim()) {
     ctx.fillStyle = '#222';
@@ -443,7 +448,7 @@ function drawMinimal(album, artist, score, caption) {
   }
 }
 
-function drawAurora(album, artist, score, caption) {
+function drawAurora(album, artist, year, score, caption) {
   const c1 = palette[0] || '#4338ca';
   const c2 = palette[1] || '#06b6d4';
   const c3 = palette[2] || '#ec4899';
@@ -523,7 +528,7 @@ function drawAurora(album, artist, score, caption) {
   const artistY = 770 + titleLines * (titleSize + 10) - 6;
   ctx.fillStyle = 'rgba(255,255,255,.82)';
   ctx.font = '700 40px -apple-system,BlinkMacSystemFont,sans-serif';
-  ctx.fillText(artist, 120, artistY + 18);
+  ctx.fillText([year, artist].filter(Boolean).join('  '), 120, artistY + 18);
 
   if (caption.trim()) {
     ctx.fillStyle = 'rgba(255,255,255,.94)';
@@ -536,13 +541,14 @@ function drawAurora(album, artist, score, caption) {
 function draw() {
   const album = (albumInput.value || 'Album Title').trim();
   const artist = (artistInput.value || 'Artist Name').trim();
+  const year = (yearInput.value || '').trim();
   const score = (scoreInput.value || '8.0').trim().replace(/\s*\/\s*10$/i, '');
   const caption = (captionInput.value || '').trim();
   const tpl = templateInput.value;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (tpl === 'minimal') drawMinimal(album, artist, score, caption);
-  else if (tpl === 'aurora') drawAurora(album, artist, score, caption);
-  else drawMag(album, artist, score, caption);
+  if (tpl === 'minimal') drawMinimal(album, artist, year, score, caption);
+  else if (tpl === 'aurora') drawAurora(album, artist, year, score, caption);
+  else drawMag(album, artist, year, score, caption);
 }
 
 function fileNameBase() {
@@ -574,7 +580,7 @@ coverInput.addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-[albumInput, artistInput, scoreInput, templateInput, captionInput].forEach(el => {
+[albumInput, artistInput, yearInput, scoreInput, templateInput, captionInput].forEach(el => {
   el.addEventListener('input', draw);
   el.addEventListener('change', draw);
 });
@@ -606,6 +612,7 @@ downloadBtn.addEventListener('click', () => {
 resetBtn.addEventListener('click', () => {
   albumInput.value = 'The Life of a Showgirl';
   artistInput.value = 'Taylor Swift';
+  yearInput.value = '2025';
   scoreInput.value = '8.2';
   templateInput.value = 'aurora';
   captionInput.value = 'A mischievous, flirty, surprisingly cohesive pop record.';
